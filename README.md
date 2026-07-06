@@ -2,148 +2,82 @@
 
 ## Project Overview
 
-This project focuses on preparing raw retail sales, product and inventory data for further business analysis.
-Before any meaningful analysis can be done, the data needs to be reliable. In this project, I reviewed three connected datasets, identified data quality issues, cleaned inconsistent values, standardized key fields and validated the final outputs.
-The goal was not to draw business conclusions at this stage. The purpose of this notebook was to create clean, well-documented datasets that can be safely used in a separate business analysis project focused on revenue growth, pricing, product performance and inventory optimization.
+This project shows the full data cleaning process for a retail dataset containing sales orders, product information and inventory records. The main goal was to turn raw, inconsistent CSV files into clean and validated datasets ready for further business analysis.
 
-## Why This Project Matters
+I focused on the preparation stage of an analytics project: checking data quality, identifying issues, cleaning inconsistent values, validating key fields and creating final output files. The project does not focus on business conclusions yet. Its purpose is to show how the data was prepared before moving into revenue, product and inventory analysis.
 
-Data cleaning is often the part of analysis that determines whether the final results can be trusted.
+This repository is the first part of a larger retail analytics project. The cleaned files created here will be used in a separate analysis project focused on revenue growth, pricing, product performance and inventory efficiency.
 
-In this project, the raw data contained several common issues that appear in real analytical work:
+## What This Project Shows
 
-- inconsistent date formats,
-- missing values,
-- duplicated records,
-- inconsistent country names,
-- text fields that needed standardization,
-- numeric fields requiring validation,
-- business records that needed to be separated from data quality errors.
+This project demonstrates that I can work with raw data before the analysis stage. I reviewed three connected datasets, checked their quality and prepared them for reliable use in future analysis.
 
-Instead of cleaning everything automatically, each issue was reviewed in context. The main question behind every step was:
-Will this issue affect the reliability of future analysis?
+The main work included checking missing values, detecting duplicates, standardizing date formats, cleaning inconsistent country names, validating prices and quantities, standardizing categorical fields and checking relationships between datasets.
 
-This helped separate actual data quality problems from valid business records, such as cancelled orders or zero stock quantities.
+I also documented cleaning decisions clearly, especially in cases where the data required business context rather than automatic removal. For example, cancelled orders and zero stock values were not treated as errors because they can be valid business records.
 
 ## Datasets Used
 
-The project is based on three raw datasets:
+The project uses three raw datasets.
 
-### 1. Sales Orders
+The sales orders dataset contains transaction-level data, including order dates, product IDs, quantities, unit prices, discounts, countries and order statuses. This was the most important dataset to clean because it will later be used for revenue and customer analysis.
 
-The sales orders dataset contains transaction-level information. It includes order dates, product identifiers, quantities, prices, discounts, countries and order statuses.
+The products dataset works as a product reference table. It contains product IDs, categories, subcategories, base prices and launch dates. The goal was to make sure that product information could be safely joined with sales and inventory data.
 
-This dataset required the most attention because it will be used later for revenue, customer and product-level analysis.
+The inventory dataset contains stock information by product and warehouse country. It was cleaned to support later inventory analysis and to make sure stock records could be connected with product data.
 
-### 2. Products
+## Cleaning Process
 
-The products dataset works as a product reference table. It contains product identifiers, categories, subcategories, base prices and launch dates.
+The cleaning process was organized by dataset. Each dataset was reviewed separately because each one had a different role in the future analysis.
 
-The main goal was to make sure that product data can be safely joined with sales and inventory data without creating duplicated or incomplete records.
+For the sales orders dataset, I checked missing values, duplicate rows, order dates, country names, quantities, unit prices, discounts and order statuses. Invalid or missing order dates were removed because they could not be used in time-based analysis. Cancelled orders were kept in the cleaned sales dataset, but I also created a separate revenue-ready version where cancelled orders are excluded.
 
-### 3. Inventory
+For the products dataset, I checked product ID uniqueness, missing values, duplicate records, category consistency, base prices and launch dates. Mixed launch date formats were converted to datetime, and a launch year column was created for later analysis.
 
-The inventory dataset contains stock information by product and warehouse country.
+For the inventory dataset, I checked product IDs, missing values, duplicate records, product and warehouse combinations, warehouse country names, stock quantities and stock update dates. Zero stock values were kept because they can represent real out-of-stock situations.
 
-This dataset was reviewed to make sure that stock quantities, warehouse locations and product references are consistent enough for future inventory analysis.
+## Main Data Quality Decisions
 
-## Cleaning Workflow
+Some records were removed because they could affect the reliability of future analysis. Duplicate rows were removed to avoid double-counting, and sales records without valid order dates were removed because they could not be assigned to a reliable month or year.
 
-The project follows a structured data cleaning workflow:
-1. Load raw datasets.
-2. Review dataset structure and data types.
-3. Check missing values.
-4. Identify duplicate records.
-5. Standardize date columns.
-6. Standardize categorical fields.
-7. Validate numerical columns.
-8. Check relationships between datasets.
-9. Create cleaned datasets.
-10. Run final validation checks.
-11. Export cleaned files for further analysis.
+Some records were kept because they represented valid business situations. Cancelled orders were kept in the cleaned sales dataset, zero stock values were kept in the inventory dataset, and missing launch dates were kept in the products dataset. These values were documented instead of being removed automatically.
 
-Each step was documented in the notebook to make the cleaning process transparent and easy to follow.
+This approach helped avoid unnecessary data loss while still preparing datasets that are reliable enough for further analysis.
 
-## Main Cleaning Steps
+## Output Files
 
-### Sales Orders Dataset
+The project creates four cleaned output files:
 
-The sales orders dataset was prepared as the main transaction table.
+- `sales_orders_clean.csv` contains cleaned sales orders with all valid order statuses retained.
+- `sales_orders_revenue.csv` contains sales records prepared for revenue analysis, with cancelled orders excluded.
+- `products_clean.csv` contains the cleaned product reference table.
+- `inventory_clean.csv` contains the cleaned inventory dataset.
 
-The cleaning process included:
+The cleaned files are saved in the `data/processed/` folder and are ready to be used in the next stage of the project.
 
-- reviewing missing values,
-- removing technical duplicate rows,
-- standardizing the `order_date` column,
-- removing records without valid order dates,
-- standardizing country names,
-- validating quantity and unit price values,
-- converting discount values into numeric format,
-- standardizing order status labels.
+## Skills Demonstrated
 
-Cancelled orders were not treated as data errors. They were kept in the cleaned sales dataset because they are valid historical records. A separate revenue-ready dataset was created for future analysis, where cancelled orders can be excluded from revenue calculations.
-This approach keeps the original business context while still preparing a clean dataset for analysis.
+This project demonstrates practical data cleaning and data preparation skills:
 
-### Products Dataset
+- data quality assessment,
+- missing value analysis,
+- duplicate detection,
+- date parsing and standardization,
+- categorical data cleaning,
+- numerical value validation,
+- working with related datasets,
+- checking relationships between tables,
+- preparing analysis-ready files,
+- documenting cleaning decisions clearly.
 
-The products dataset was cleaned as a product reference table.
-The cleaning process included:
+## Tools Used
 
-- checking product identifier uniqueness,
-- reviewing missing values,
-- checking duplicate records,
-- standardizing product categories and subcategories,
-- validating base prices,
-- converting launch dates into datetime format,
-- creating a `launch_year` column,
-- checking whether product IDs from sales orders exist in the products table.
+- Python
+- Pandas
+- NumPy
+- Google Colab / Jupyter Notebook
 
-Missing launch dates were kept as missing values. A missing launch date does not make the full product record invalid, but it needs to be considered separately in analyses that depend on launch timing.
-
-### Inventory Dataset
-
-The inventory dataset was prepared for future stock and inventory analysis.
-The cleaning process included:
-
-- validating product identifiers,
-- reviewing missing values,
-- checking duplicate records,
-- checking duplicated product and warehouse combinations,
-- standardizing warehouse country names,
-- validating stock quantity values,
-- reviewing zero stock records,
-- converting stock update dates into datetime format,
-- checking whether inventory product IDs exist in the products table.
-
-Zero stock values were kept in the cleaned dataset because they can represent valid out-of-stock situations. Missing or unparseable stock update dates were also retained because they do not invalidate the stock quantity itself.
-
-## Data Quality Decisions
-
-A key part of this project was deciding what should be removed, what should be corrected and what should remain in the dataset.
-
-The most important decisions were:
-
-- Duplicate rows were removed because they could lead to double-counting.
-- Invalid or missing order dates were removed from the sales orders dataset because they could not be assigned to a reliable time period.
-- Cancelled orders were retained in the cleaned sales dataset, but separated from the revenue-ready dataset.
-- Missing launch dates were kept because products can still be valid without launch date information.
-- Zero stock values were kept because they may represent valid out-of-stock cases.
-- Missing stock update dates were kept as incomplete metadata rather than removed as invalid inventory records.
-
-These decisions were made to avoid unnecessary data loss while keeping the final datasets reliable.
-
-## Output Datasets
-
-The cleaning process creates cleaned versions of the original datasets: 
-- sales_orders_clean.csv
-- sales_orders_revenue.csv
-- products_clean.csv
-- inventory_clean.csv
-
-The **sales_orders_clean** file keeps all valid order statuses, including cancelled orders.
-The **sales_orders_revenue** file excludes cancelled orders and is intended for future revenue analysis.
-
-## Project Structure
+## Repository Structure
 
 ```text
 retail-sales-data-cleaning/
