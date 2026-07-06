@@ -8,13 +8,13 @@ I focused on the preparation stage of an analytics project: checking data qualit
 
 This repository is the first part of a larger retail analytics project. The cleaned files created here will be used in a separate analysis project focused on revenue growth, pricing, product performance and inventory efficiency.
 
-## What This Project Shows
+## Data Preparation Scope
 
-This project demonstrates that I can work with raw data before the analysis stage. I reviewed three connected datasets, checked their quality and prepared them for reliable use in future analysis.
+This repository documents the preparation of three related retail datasets before the analytical stage. The work starts with reviewing the raw structure of sales, product and inventory data, then moves through the checks needed to make the datasets consistent, reliable and ready for further analysis.
 
-The main work included checking missing values, detecting duplicates, standardizing date formats, cleaning inconsistent country names, validating prices and quantities, standardizing categorical fields and checking relationships between datasets.
+The cleaning process covers missing value review, duplicate detection, date parsing, categorical standardization, numerical validation and relationship checks between tables. These steps were important because the cleaned data will later be used for revenue calculations, product-level analysis and inventory reporting.
 
-I also documented cleaning decisions clearly, especially in cases where the data required business context rather than automatic removal. For example, cancelled orders and zero stock values were not treated as errors because they can be valid business records.
+A key part of the process was deciding how to handle records that were not simply “wrong”, but required business context. Cancelled orders, missing launch dates and zero stock values were reviewed separately instead of being removed automatically. This helped keep valid business information in the data while still preparing clean outputs for the next stage of the project.
 
 ## Datasets Used
 
