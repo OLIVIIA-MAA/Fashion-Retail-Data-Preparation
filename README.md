@@ -134,7 +134,6 @@ No records were removed from the table.
 ### Validating the product reference
 
 The table contained 2,500 rows and 2,500 unique product identifiers. No identifiers were missing, no product IDs were duplicated and no full-row duplicates were found.
-
 This confirmed that each row represents one product. A duplicated product identifier could match one sales transaction to several reference records and inflate results after a join, so verifying uniqueness was necessary before combining the datasets.
 
 I also compared product identifiers across the related tables. Every product referenced in Sales Orders was available in Products, so sales records can receive product attributes without losing transactions or creating unmatched product references.
