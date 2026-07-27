@@ -64,7 +64,6 @@ I standardised the separators and converted the column using mixed-format parsin
 After conversion, 1,892 records had no valid order date. This included the original missing values and additional text values that could not be parsed reliably.
 
 I removed these records because they could not be assigned to the correct month or year. Keeping them would allow them to contribute to overall sales totals while excluding them from the correct reporting period, weakening analyses of growth, seasonality and year-over-year performance.
-
 All remaining order dates fall between 1 January 2015 and 31 December 2024.
 
 ### Reviewing quantities and prices
