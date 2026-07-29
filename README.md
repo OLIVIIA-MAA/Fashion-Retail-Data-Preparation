@@ -1,284 +1,288 @@
-# Retail Sales Data Cleaning and Quality Assessment
+# Retail Sales Data Cleaning and Preparation
 
 ## Project Overview
 
-Reliable business analysis begins before the first metric is calculated. Inconsistent categories, incorrectly interpreted identifiers or incomplete transaction data can affect revenue, market comparisons and product performance even when the analytical code itself runs correctly.
+This project prepares sales, product and inventory data from a real fashion retail company for a separate business analysis. The datasets were made available for legal use in this portfolio and contain actual transaction, product and warehouse records rather than generated examples.
 
-This project prepares three connected retail datasets for further business analysis:
+The three tables are connected through product_id, but they represent different levels of detail. Sales Orders contains one record per order, Products contains one record per product, and Inventory contains one record per product and warehouse country. Before these tables could be used together, I needed to confirm their keys, identify records that could distort joins or calculations, and separate structural errors from values that were incomplete but still useful.
 
-| Dataset      | Raw records | Cleaned records | Main analytical purpose                              |
-| ------------ | ----------: | --------------: | ---------------------------------------------------- |
-| Sales Orders |     260,780 |         255,486 | Revenue, sales volume, markets, products and trends  |
-| Products     |       2,500 |           2,500 | Product categories, pricing and launch analysis      |
-| Inventory    |       3,741 |           3,741 | Product availability, shortages and stock allocation |
+The notebook does not produce one table in which every field is treated as equally reliable. Records with invalid or conflicting identities are rejected, while records with reliable keys but incomplete, unusual or unresolved fields remain in the cleaned outputs with status columns or review flags. Smaller analytical subsets apply stricter requirements for specific uses without removing valid information from the broader tables.
 
-The cleaning process was based on how each table would later be used. Missing values, repeated identifiers and unusual records were not removed automatically. I first determined whether they represented incorrect data, valid business information or a limitation that should remain visible in the final datasets.
+## Data Quality Questions
 
-As a result, records were removed only when they could not be interpreted reliably for the planned analysis. Valid information such as cancelled orders, products without launch dates and zero-stock records was preserved.
+The cleaning process was designed around several questions that affect the reliability of later analysis:
 
-## Tools and Workflow
+* What does one row represent in each table, and which fields can be used as keys?
+* Are repeated rows technical duplicates or valid records at a different level of detail?
+* Which categorical variants can be standardized through confirmed mappings?
+* How can mixed and ambiguous dates be parsed without inventing information?
+* Which records must be rejected, and which should remain with a review flag?
+* Can the tables be joined without losing records or multiplying results?
+* Can every source row be accounted for after cleaning and export?
 
-The cleaning process was completed in Python using pandas and NumPy. Pathlib was used to manage the project folders and file paths.
+These questions determined the cleaning rules and the conditions used to create the final analytical subsets.
 
-The notebook follows a reproducible sequence:
+## Dataset Overview and Key Results
 
-* load the three raw CSV files
-* create working copies to preserve the original data
-* review structure, data types and missing values
-* validate identifiers and table-level granularity
-* standardise dates and categorical values
-* review numerical fields used in calculations
-* verify relationships between the datasets
-* run final validation checks
-* export the cleaned datasets for further analysis
+| Dataset      | Source rows | Source columns | Level of detail                      | Provisional key                | Main analytical use                                             |
+| ------------ | ----------: | -------------: | ------------------------------------ | ------------------------------ | --------------------------------------------------------------- |
+| Sales Orders |     260,780 |              9 | One row per order                    | order_id                       | Order counts, sales values, markets, products and time analysis |
+| Products     |       2,500 |              5 | One row per product                  | product_id                     | Product attributes, base prices and launch dates                |
+| Inventory    |       3,741 |              4 | One product in one warehouse country | product_id + warehouse_country | Stock availability and update-date review                       |
 
-## Sales Orders
+The most important results of the notebook are summarized below.
 
-Sales Orders is the central dataset in the project and the basis for revenue, product, market and time-based analysis. The raw table contained 260,780 records. Before calculating any metrics, I needed to determine which rows represented usable sales transactions and which could distort transaction counts or financial results.
+| Finding                                        |                         Result | Decision                                                                |
+| ---------------------------------------------- | -----------------------------: | ----------------------------------------------------------------------- |
+| Exact duplicate Sales Orders copies            |                            780 | Reject the repeated copies and retain the first occurrence              |
+| Structurally cleaned Sales Orders              |               **260,000 rows** | Preserve valid orders even when individual fields require review        |
+| Core sales-analysis subset                     |               **254,804 rows** | Apply date, category, positive-value and product-reference requirements |
+| Missing discounts after duplicate removal      |                         31,243 | Retain as unknown rather than replacing with 0%                         |
+| Orders with quantity 608                       |                          1,563 | Retain with a review flag and test results with and without them        |
+| Orders before the recorded product launch date |                        121,535 | Do not correct automatically; treat the field definition as unresolved  |
+| Inventory records older than 90 days           | **3,156 of 3,715 review rows** | Retain with a freshness flag                                            |
+| Exported files validated after saving          |                       10 of 10 | Confirm row counts, columns and source-row tracking after read-back     |
 
-### Cleaning impact
+## Cleaning Approach
 
-| Cleaning stage             | Rows before | Records removed | Rows after | Decision                                                      |
-| -------------------------- | ----------: | --------------: | ---------: | ------------------------------------------------------------- |
-| Full-row duplicate removal |     260,780 |             780 |    260,000 | Remove identical technical duplicates                         |
-| Order date validation      |     260,000 |           1,892 |    258,108 | Remove orders without a reliable reporting date               |
-| Quantity validation        |     258,108 |           1,027 |    257,081 | Exclude non-positive quantities from standard sales analysis  |
-| Unit price validation      |     257,081 |           1,595 |    255,486 | Exclude non-positive prices from revenue and pricing analysis |
+### Source protection and schema control
 
-In total, 5,294 records were removed, representing 2.03% of the raw table. The final 255,486 records are suitable for standard sales analysis under the assumptions described below.
+All source columns are loaded as text with pandas' automatic missing-value recognition disabled. This prevents identifiers, mixed date formats and text that resembles a missing-value token from being converted before inspection. Whitespace is normalized later, when leading and trailing spaces are removed, repeated internal spaces are collapsed and empty strings are converted to missing values.
 
-### Confirming what one row represents
+I added _source_row immediately after loading each file. It stores the original row position and remains in the cleaned, rejected and analytical tables. This allows every output record to be traced back to the source and supports the final reconciliation between raw, cleaned and rejected rows.
 
-A repeated order identifier could indicate a duplicated transaction, but it could also mean that one order was divided across several product-level rows. I therefore reviewed both complete row duplication and identifier uniqueness before deciding whether any aggregation was required.
+Before changing any values, the actual schemas were compared with the expected columns. The validation covered missing columns, unexpected columns, duplicate column names and column order. All three files passed this check. No required field was missing, no unexpected or duplicate column name was found, and the columns appeared in the expected order.
 
-The raw table contained 780 rows that were identical across all nine columns. Because there were no differences that would suggest separate business events, I classified them as technical duplicates and removed them.
+The first quality profile was created before record rejection. It identified **780 exact duplicate copies** in Sales Orders, 629 empty order dates, 31,322 empty discount values, 91 empty launch dates and 6 empty stock-update dates. I also searched for placeholder tokens such as NA, N/A, null, none and nan. None were present, so the notebook did not need an additional placeholder dictionary.
 
-After this step, the table contained 260,000 rows and 260,000 unique order identifiers. No order identifiers were missing or repeated. This confirmed that each row represents one complete order and that the dataset does not require additional aggregation before analysis.
+### Preserving original values
 
-### Establishing reliable reporting dates
+Before transforming a source field, the notebook creates a corresponding _raw column. The raw and cleaned forms can therefore be compared in the same output. This is useful when reviewing standardized categories, parsed dates and numeric values that remain unresolved.
 
-The initial review identified 629 empty order dates. However, the column was stored as text and contained different formats and separators, so the original missing-value count did not show whether all remaining values could be interpreted correctly.
+The raw columns are not substitutes for the original files. Their purpose is to preserve the evidence behind a cleaning decision and make flagged records easier to review during later analysis.
 
-I standardised the separators and converted the column using mixed-format parsing with day-first interpretation. Values that could not be interpreted reliably were converted to missing dates rather than being silently assigned an incorrect date.
+### Categorical standardization
 
-After conversion, 1,892 records had no valid order date. This included the original missing values and additional text values that could not be parsed reliably.
+Known spelling, capitalization, language and abbreviation variants are standardized through explicit dictionaries. The mappings cover product categories and subcategories, sales countries, order statuses and warehouse countries.
 
-I removed these records because they could not be assigned to the correct month or year. Keeping them would allow them to contribute to overall sales totals while excluding them from the correct reporting period, weakening analyses of growth, seasonality and year-over-year performance.
-All remaining order dates fall between 1 January 2015 and 31 December 2024.
+I did not use fuzzy matching. Similar text does not confirm that two values have the same business meaning, and an approximate match could silently place a record in the wrong market or product group. A value not covered by a confirmed dictionary remains visible and receives a missing or unrecognized flag.
 
-### Reviewing quantities and prices
+Sales-country variants are mapped into ten markets. Order statuses are consolidated into COMPLETED, SHIPPED and CANCELLED, while warehouse countries are standardized to Czech Republic, Germany and Poland. After mapping, the notebook checks the remaining values against the expected sets rather than assuming that every transformation succeeded.
 
-Quantity and unit price directly affect sales volume and order value. Both fields therefore required validation before they could be used in calculations.
+### Date parsing
 
-The quantity review identified 1,027 records with zero or negative values. The dataset did not include a transaction type that would allow these records to be confirmed as returns, corrections or another separate business process. I therefore excluded them from a dataset intended for standard sales analysis rather than assigning them an unsupported interpretation.
+The source files use complete ISO dates written as YYYY-MM-DD, complete day-first dates written as DD-MM-YYYY, and partial monthly values written as YYYY-MM. Dots and slashes are standardized to hyphens before format detection.
 
-The same approach was applied to 1,595 records with non-positive unit prices. Without additional information, these values could represent errors, free products, replacements or accounting adjustments. They were unsuitable for standard revenue and pricing calculations and were removed.
+Partial monthly values are not assigned an invented day. They receive the status partial_month. Empty values receive missing, while impossible or unsupported dates receive invalid. Only confirmed complete dates are stored as parsed dates.
 
-After cleaning, quantities range from 1 to 608 and unit prices from 24.08 to 769.72. Neither field contains missing or non-positive values.
+A day-month date is textually ambiguous when both components are between 1 and 12. The parser applies the day-first convention only when the same column also contains values that can only follow DD-MM-YYYY. Parsed ambiguous values keep a separate flag, so the assumption remains visible even when the date can be used.
 
-### Preserving incomplete discount information
+### Rejection and analytical filtering
 
-The discount column was imported as text and included percentage symbols and unnecessary spaces. I removed the formatting and converted the field to a numeric type.
+Exact duplicate copies are handled before key validation. The first occurrence remains in the working table, while later copies move to the relevant rejected table with rejection_reason = exact_duplicate_copy.
 
-Before conversion, 30,688 values were missing. The same number remained missing afterwards, confirming that the transformation did not cause any valid entries to be lost.
+The remaining key rules reflect the level of detail in each dataset. Products requires a valid and unique product_id. Sales Orders requires valid order_id, customer_id and product_id values, and order_id must remain unique. Inventory requires a valid product_id, a recognized warehouse country and a unique combination of product_id and warehouse_country.
 
-The cleaned dataset contains 224,798 recorded discounts ranging from 0% to 60.58%. No recorded values fall outside the valid range of 0% to 100%.
+A problem in a non-key field does not automatically invalidate the entire record. Missing dates, zero values, missing discounts, stale stock updates and unusual quantities are retained when the remaining fields are still usable. These records receive statuses or flags and may be excluded from a specific analytical subset later.
 
-I did not replace missing discounts with zero. A value of zero confirms that no discount was applied, while a missing value means that the information is unavailable. Treating both cases as equivalent would incorrectly classify 30,688 orders as full-price transactions and could bias comparisons between discounted and non-discounted sales.
+## Data Quality Findings and Decisions
 
-The missing values were therefore retained as unknown. Analyses that do not depend on discount information can use the complete cleaned table, while discount-related results should be calculated only from confirmed values.
+### Products
 
-### Standardising markets and order statuses
+Products is the reference table used to add categories, subcategories, base prices and launch information to Sales Orders and Inventory. Its key must be unique because one duplicated product record could multiply order values after a join.
 
-Country names were recorded using abbreviations, local-language names and inconsistent capitalisation. I mapped these variants into ten consistent markets so that one country would not be divided across several reporting groups.
+The table contained no exact duplicate copies. All 2,500 product IDs were present, numeric in format and unique after normalization. No product row was rejected, and identifiers remained stored as text because they are labels used for matching rather than values used in arithmetic.
 
-Order statuses were consolidated into three values:
+All category and subcategory values were present and recognized. The standardization review was empty, which means that the current file did not contain a category label requiring replacement. All base-price values could also be converted to numeric form. No missing, invalid, zero or negative base price was found, so the notebook did not correct or reject any product based on price.
 
-* COMPLETED
-* SHIPPED
-* CANCELLED
+Launch dates required a different decision because an unreliable date does not invalidate the product itself. The source profile contained 91 empty launch dates. After parsing, the cleaned table contained 91 missing dates, 3 partial monthly values and 10 invalid dates. Another 148 day-month values were textually ambiguous but could be parsed as DD-MM-YYYY using evidence from the same column. No ambiguous date remained unresolved after applying that rule.
 
-The cleaned dataset contains 15,457 cancelled orders. I retained them because they represent real business events and may support analysis of cancellation patterns across products, markets or reporting periods.
+I retained products with missing, partial or invalid launch dates because their IDs, categories, subcategories and prices remain useful. Estimating a missing date would create unsupported information. The cleaned table therefore keeps the original value, parsed date, detected format and date status. Analyses based on launch timing should use only products with launch_date_status = valid.
 
-For this project, COMPLETED and SHIPPED orders are included in revenue analysis, while CANCELLED orders are excluded. Applying this rule during analysis preserves the complete order history without allowing cancelled transactions to overstate revenue.
+### Sales Orders: duplicate and key validation
 
-### Final Sales Orders result
+Sales Orders contained 260,780 source rows and 780 records that were exact copies across all nine source columns. The repeated copies were moved to **sales_orders_rejected.csv**, while the first occurrence remained in the cleaned table.
 
-The final sales_orders_clean dataset contains 255,486 orders and nine columns. It has:
+After duplicate removal, **260,000 rows** remained. The notebook found no missing or invalid order IDs, customer IDs or product IDs. It also found no conflicting order-ID groups and no remaining duplicate order IDs. This confirmed that one row represents one complete order rather than one line of a multi-product order, so no additional aggregation was required before analysis.
 
-* no full-row duplicates
-* complete and unique order identifiers
-* no missing or invalid order dates
-* no non-positive quantities or unit prices
-* no out-of-range values among recorded discounts
-* no unexpected country or order status values
+The structurally cleaned table retains orders with reliable identities even when another field cannot support every analytical use. This prevents a missing date or unresolved numeric value from removing otherwise valid order information.
 
-Missing discounts remain as an intentional limitation rather than being replaced with unsupported values.
+### Sales Orders: dates and categories
 
-## Products
+The cleaned Sales Orders table contains 218,047 valid dates in YYYY-MM-DD format and 39,367 valid dates in DD-MM-YYYY format. It also contains 1,263 invalid dates, 694 partial monthly values and 629 missing dates.
 
-Products is the reference table used to add category, subcategory, pricing and launch information to sales and inventory records. Because one product record may be matched with many transactions, the most important initial check was whether each product identifier referred to one product only.
+The column included 23,798 values that provided unambiguous evidence for the day-first convention. Based on this pattern, 15,569 textually ambiguous dates were parsed as DD-MM-YYYY and retained with an ambiguity flag.
 
-### Cleaning impact
+Missing, partial and invalid dates remain in **sales_orders_clean.csv** because the order itself is still identifiable. They are excluded from **sales_orders_core_analysis.csv**, where a complete date is required for monthly, annual and seasonal reporting.
 
-| Validation           | Before cleaning | Cleaning decision                        |             After cleaning |
-| -------------------- | --------------: | ---------------------------------------- | -------------------------: |
-| Product records      |           2,500 | Retain all valid products                |                      2,500 |
-| Missing launch dates |              91 | Standardise and parse mixed date formats | 101 missing or unparseable |
-| Valid launch dates   |           2,409 | Retain only confirmed dates              |                      2,399 |
-| Dataset columns      |               5 | Add launch_year from confirmed dates     |                          6 |
+Country and order-status values were standardized through the explicit dictionaries. The mappings changed 188,960 country entries and 220,033 status entries. After validation, no missing or unrecognized country or status remained.
 
-No records were removed from the table.
+Cancelled orders were preserved because cancellation is a business event rather than a technical error. They may be useful for cancellation analysis, but they should not be included automatically in revenue calculations.
 
-### Validating the product reference
+### Sales Orders: numeric values and discounts
 
-The table contained 2,500 rows and 2,500 unique product identifiers. No identifiers were missing, no product IDs were duplicated and no full-row duplicates were found.
-This confirmed that each row represents one product. A duplicated product identifier could match one sales transaction to several reference records and inflate results after a join, so verifying uniqueness was necessary before combining the datasets.
+Quantities were converted to nullable integers after checking their format, fractional values and sign. No invalid, fractional or negative quantity was found, but 1,034 orders contained quantity equal to zero.
 
-I also compared product identifiers across the related tables. Every product referenced in Sales Orders was available in Products, so sales records can receive product attributes without losing transactions or creating unmatched product references.
+Unit prices were converted to nullable floating-point values. No invalid or negative price was found, but 1,608 orders contained a zero unit price. The source files do not explain whether these zeros represent corrections, free items, replacements or another business process, so I did not assign one interpretation.
 
-### Identifying unreliable launch dates
+Zero-quantity and zero-price rows remain in the broad cleaned table with flags. They are excluded from the core sales subset because they cannot support standard quantity or value calculations. gross_order_value is calculated only when both quantity and unit price are positive.
 
-Launch dates were stored as text and used different formats and separators. The initial review showed 91 missing values, but this did not confirm that every remaining text value represented a valid date.
+The source profile contained 31,322 empty discount cells. After removal of exact duplicate copies, **31,243 missing discounts** remained. No recorded discount had an invalid format or fell outside the allowed range from 0 to 100.
 
-After standardising and converting the column, the number of missing or unparseable dates increased from 91 to 101. The conversion therefore identified 10 additional values that could not be interpreted reliably.
+I kept missing discounts as null. A recorded zero confirms that no discount was applied, while a missing value means that the discount is unknown. Replacing all missing values with zero would classify unconfirmed orders as full-price transactions. Gross value can still be calculated for these records, but net_order_value remains missing unless the discount is confirmed.
 
-I retained all affected products because a missing launch date does not invalidate their product identifiers, categories, subcategories or prices. Removing them would reduce product coverage and could cause valid sales or inventory records to lose their product attributes after a join.
+### Sales Orders: quantity 608
 
-I also avoided estimating the missing dates because the source data did not provide enough information to assign them reliably. Instead, launch_year was created only from confirmed launch dates.
+The positive quantity distribution has a median of 3, a 95th percentile of 6 and a 99th percentile of 8. The maximum is 608.
 
-The cleaned table contains 2,399 valid launch dates covering the period from 2 January 2015 to 30 December 2024. The remaining 101 products retain missing launch_date and launch_year values.
+Quantity 608 appears in **1,563 orders**. In comparison, quantities 9, 10 and 11 appear in 408, 100 and 25 orders. The repeated value is therefore not an isolated extreme observation. However, the available fields do not show whether it represents valid bulk orders, a source-system code or another issue.
 
-### Standardising product groups
+I retained the records and created quantity_608_review_flag instead of labelling them as errors. Although they represent only **0.60% of structurally cleaned orders**, they account for **53.55% of recorded positive units** and **53.45% of gross order value**. Any conclusion based on volume or gross value should therefore be compared with and without these rows.
 
-Category and subcategory values were complete but required consistent formatting. I removed unnecessary spaces and applied consistent capitalisation.
+The notebook's quantity histogram is limited to values up to the 99th percentile so that the typical distribution remains readable. This restriction affects only the chart and does not filter the cleaned data.
 
-The final table contains five categories and 22 subcategories, with no missing or unexpected labels. This prevents the same product group from being divided during revenue, pricing or sales volume aggregation.
+<!-- Add the quantity distribution visualisation here. -->
 
-### Validating base prices
+### Inventory
 
-All 2,500 products contained a base price. The values ranged from 31.23 to 409.97, with no missing, zero or negative prices.
+Inventory contains 3,741 rows for 2,500 products. Repeated product IDs are expected because the same product can be stored in more than one warehouse country. Product ID alone is therefore not the correct duplicate key.
 
-No price corrections or record removals were required.
+One inventory record is defined by the combination of product_id and standardized warehouse_country. The table contained no exact duplicate copies, invalid product IDs, missing warehouse countries or duplicate product-country combinations after standardization. No inventory row was rejected.
 
-### Final Products result
+Warehouse labels were mapped to Czech Republic, Germany and Poland. The composite key was checked again after mapping because values such as GER, Deutschland and Germany could initially make two records appear to belong to separate locations. Standardization did not create any conflicting keys.
 
-The final products_clean dataset contains all 2,500 products and six columns. It provides a unique and complete product reference for identifiers, categories, subcategories and prices.
+Stock quantities contained no invalid formats, fractional values or negative values. The table did contain 255 zero-stock records. I retained them because zero is a valid business value that identifies a product as unavailable in a warehouse country. Removing these rows would hide shortages.
 
-The only remaining limitation is incomplete launch information for 101 products. These records remain fully usable for analyses that do not depend on launch timing.
+The stock-update review found 6 missing dates, 7 partial monthly values and 13 invalid dates. Another 224 day-month values were textually ambiguous but could be parsed as DD-MM-YYYY using evidence from the same column. Rows with incomplete or invalid update dates remain in **inventory_clean.csv**, but they are excluded from the narrower stock-review subset.
 
-## Inventory
+Inventory age is calculated against 31 December 2024, the latest valid date found in the supplied sales and inventory files. This is a project reference date, not a confirmed extraction or inventory snapshot date.
 
-Inventory contains 3,741 stock records for 2,500 products. Unlike Products, this table is not expected to contain one row per product because the same item may be stored in more than one warehouse country.
+A stock update older than 90 days receives stale_stock_update_review_flag. Among the 3,715 records suitable for stock review, 3,156 were older than 90 days and 559 were within the threshold. No update occurred after the reference date. The table can describe recorded quantities, but it should not be presented as a confirmed current stock position without a verified snapshot date or update schedule.
 
-The most important decision was therefore defining the correct inventory key before treating repeated product identifiers as duplicates.
+## Cross-Dataset Checks and Analytical Subsets
 
-### Cleaning impact
+All product IDs used in Sales Orders and Inventory were found in Products. This means that both operational tables can receive product attributes without producing unmatched product references.
 
-| Validation                              | Before cleaning | Cleaning decision                             |            After cleaning |
-| --------------------------------------- | --------------: | --------------------------------------------- | ------------------------: |
-| Inventory records                       |           3,741 | Retain all valid stock records                |                     3,741 |
-| Warehouse country labels                |              16 | Standardise abbreviations and naming variants |                         3 |
-| Duplicated product-country combinations |               0 | Recheck after country standardisation         |                         0 |
-| Zero-stock records                      |             255 | Retain as valid out-of-stock information      |                       255 |
-| Missing update dates                    |               6 | Standardise and parse mixed date formats      | 19 missing or unparseable |
-| Invalid stock quantities                |               0 | No correction required                        |                         0 |
+The Sales Orders to Products merge was validated as many_to_one. Many orders may refer to one product, but each product ID can match no more than one product record. Inventory remains at product-country level and is not treated as a one-row-per-product table.
 
-No inventory records were removed.
+Two purpose-specific subsets were created after structural cleaning.
 
-### Defining the inventory key
+| Subset                             |    Rows | Inclusion rules                                                                                       | Intended use                                                              |
+| ---------------------------------- | ------: | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **sales_orders_core_analysis.csv** | 254,804 | Valid order date, recognized country and status, positive quantity and unit price, matched product ID | Order counts and gross-value analysis by date, market, status and product |
+| **inventory_stock_review.csv**     |   3,715 | Recognized warehouse country, non-negative stock, valid update date, matched product ID               | Warehouse availability and stock-freshness review                         |
 
-The table contained 3,741 records but only 2,500 unique product identifiers. Removing every repeated product ID would delete valid information about products stored in different locations.
+Missing discounts remain in the core sales subset because gross value does not require a confirmed discount. Quantity 608 also remains visible because it requires sensitivity testing rather than structural rejection. The stock-review subset retains stale records with a flag so that freshness can be evaluated without losing recorded quantity information.
 
-I therefore defined one inventory record using the combination of product_id and warehouse_country. This composite key represents one product in one warehouse country and provides the correct level for duplicate detection.
+### Orders compared with product launch dates
 
-No duplicated product-country combinations were found. Repeated product identifiers therefore reflect the structure of the inventory rather than duplicated stock records.
+Orders with valid order dates were compared with products that had valid launch dates. The result contained 125,257 orders placed on or after the recorded launch date and **121,535 orders** placed before it. A further 13,208 orders could not be assessed because at least one required date was unavailable.
 
-### Standardising warehouse locations
+Orders before the recorded launch date represent **49.2% of assessable orders**. This is too large to treat as a small number of isolated errors. The available source documentation does not confirm whether launch_date represents the first sale, catalogue introduction, market-specific launch or another event.
 
-The warehouse_country field initially contained 16 labels, including abbreviations, local-language names and inconsistent capitalisation. I mapped these variants into three consistent values:
+I did not modify either field. Until the business definition is confirmed, launch dates should not be used for product-age, pre-launch-sales or lifecycle conclusions.
 
-* Czech Republic
-* Germany
-* Poland
+### Transaction prices compared with product base prices
 
-I repeated the composite-key check after standardisation. This was necessary because values such as GER, Deutschland and Germany could initially make two records appear to belong to different locations, even though they referred to the same country.
+For records with positive transaction and base prices, the notebook calculates the percentage difference as:
 
-No duplicated product-country combinations appeared after standardisation. The transformation improved warehouse-level grouping without creating conflicting inventory records.
+(unit_price - base_price) / base_price × 100
 
-### Preserving zero-stock information
+The comparison was reviewed under three possible absolute-difference thresholds.
 
-Stock quantities ranged from 0 to 567 and contained no missing or negative values. No quantity corrections or removals were required.
+| Absolute difference from base price | Orders flagged | Share of assessable orders |
+| ----------------------------------: | -------------: | -------------------------: |
+|                       More than 20% |        124,903 |                     48.34% |
+|                       More than 50% |         15,983 |                      6.19% |
+|                      More than 100% |              8 |                      0.00% |
 
-The table included 255 zero-stock records, representing 6.82% of the inventory. I retained them because zero is a valid business value that identifies a product as unavailable in a particular warehouse country.
+No threshold was used to reject an order. The source does not confirm whether differences reflect promotions, historical price changes, market-specific pricing or another definition of base_price. The comparison remains a review measure rather than a cleaning rule.
 
-Removing these records would hide shortages and make product availability appear better than it was.
+The displayed chart is restricted to the 1st–99th percentile for readability. No transaction is removed from the exported data because of this visual limit.
 
-### Identifying unreliable stock update dates
+<!-- Add the transaction-price versus base-price visualisation here. -->
 
-The last_stock_update field was stored as text and used several formats and separators. The initial review identified 6 missing values.
+## Validation and Output Files
 
-I standardised the separators and converted the field using mixed-format parsing with day-first interpretation. After conversion, 19 values were missing or invalid. This means that the transformation identified 13 additional text values that could not be interpreted reliably.
+### Row reconciliation
 
-These values were converted to missing dates rather than being assigned an uncertain timestamp.
+The final reconciliation uses _source_row to confirm that every source record appears exactly once in either a cleaned or rejected table. A record may not appear in both groups, and no unexpected output row may be introduced.
 
-I retained the affected stock records because the missing update date does not invalidate the recorded quantity. They remain suitable for general availability and shortage analysis, although they should be excluded or reviewed separately when conclusions depend on stock freshness.
+| Dataset      | Source rows | Cleaned rows | Rejected rows | Overlap | Unaccounted | Unexpected |
+| ------------ | ----------: | -----------: | ------------: | ------: | ----------: | ---------: |
+| Products     |       2,500 |        2,500 |             0 |       0 |           0 |          0 |
+| Sales Orders |     260,780 |      260,000 |           780 |       0 |           0 |          0 |
+| Inventory    |       3,741 |        3,741 |             0 |       0 |           0 |          0 |
 
-The 3,722 confirmed update dates cover the period from 12 May 2023 to 31 December 2024.
+The final controls also confirmed unique product_id values in Products, unique order_id values in Sales Orders and unique product-country keys in Inventory. Both analytical subsets contain only rows from their parent cleaned tables, and neither subset contains an unmatched product reference.
 
-### Final Inventory result
+### Export read-back validation
 
-The final inventory_clean dataset contains all 3,741 records and four columns. It has:
+The notebook exports ten CSV files and then reads each file back from disk. Row counts and column order are compared with the in-memory tables. For row-level outputs, the full _source_row sequence is also checked.
 
-* no full-row duplicates
-* no missing product identifiers
-* no duplicated product-country combinations
-* no missing or negative stock quantities
-* three consistent warehouse countries
-* 255 retained zero-stock records
-* 19 missing or unparseable stock update dates
+**All ten exported files passed the applicable read-back controls.** This confirmed that the saved outputs retained the expected rows and structure after export.
 
-Every product referenced in Inventory is available in the Products table.
+### Output files
 
-## Cross-Dataset Validation
+**Cleaned data**
 
-The relationships between the datasets were checked before export.
+* data/processed/**products_clean.csv** — structurally valid product records with original values, cleaned fields and quality indicators.
+* data/processed/**sales_orders_clean.csv** — structurally valid orders, including field-level statuses and review flags.
+* data/processed/**inventory_clean.csv** — structurally valid product-country inventory records with quantity and freshness indicators.
 
-All product identifiers used in Sales Orders and Inventory were found in Products. This means that the cleaned tables can be joined without losing product attributes or creating unmatched product references.
+**Analysis and review subsets**
 
-The validated table structure is:
+* data/processed/**sales_orders_core_analysis.csv** — orders meeting the requirements of the defined core sales analysis.
+* data/processed/**inventory_stock_review.csv** — inventory rows with usable product, warehouse, quantity and update-date fields.
 
-* one Sales Orders row represents one order
-* one Products row represents one product
-* one Inventory row represents one product in one warehouse country
+**Rejected records**
 
-These definitions establish the correct level of detail for joins and prevent duplicated results during aggregation.
+* data/audit/**products_rejected.csv**
+* data/audit/**sales_orders_rejected.csv**
+* data/audit/**inventory_rejected.csv**
 
-## Remaining Analytical Considerations
+**Audit summaries**
 
-The cleaning process does not remove every limitation from the source data. The following rules should remain visible in the next stage of analysis:
+* data/audit/**quality_issue_summary.csv** — counts of detected data-quality issues and review indicators.
+* data/audit/**key_findings.csv** — selected findings with their analytical interpretation.
 
-* CANCELLED orders must be excluded from revenue calculations
-* discount analysis should use only confirmed discount values
-* launch-based analysis has incomplete information for 101 products
-* freshness-based inventory analysis has incomplete dates for 19 records
-* removed non-positive quantities and prices cannot be classified as returns or corrections because the source data did not contain the necessary transaction context
+## Repository Structure and Reproduction
 
-Keeping these limitations documented prevents incomplete information from being treated as confirmed business data.
+```text
+.
+├── Retail_Sales_Data_Cleaning.ipynb
+├── README.md
+└── data
+    ├── raw
+    │   ├── sales_orders.csv
+    │   ├── products.csv
+    │   └── inventory.csv
+    ├── processed
+    └── audit
+```
 
-## Output Files
+The workflow requires Python, pandas, Matplotlib and Jupyter Notebook. The required packages can be installed with:
 
-The cleaning workflow produces three files in the processed data folder:
+```bash
+pip install pandas matplotlib jupyter
+```
 
-* sales_orders_clean.csv
-* products_clean.csv
-* inventory_clean.csv
+To reproduce the outputs:
 
-Cancelled orders remain in sales_orders_clean. They are filtered out only when revenue is calculated, so the project retains one complete cleaned order history rather than maintaining a separate revenue dataset.
+1. Place sales_orders.csv, products.csv and inventory.csv in data/raw.
+2. Open Retail_Sales_Data_Cleaning.ipynb from the project root.
+3. Run all notebook cells in order.
+4. Find cleaned and analytical outputs in data/processed.
+5. Find rejected records and audit summaries in data/audit.
 
-## Final Result
+The notebook creates the processed and audit directories when they are not already present. It stops before transformation when a required source file or critical schema column is missing.
 
-The project transforms three connected raw datasets into a consistent analytical foundation without removing valid business information unnecessarily.
+## Limitations and Next Step
 
-The main outcome is not only cleaner formatting. The final datasets have clearly defined levels of detail, verified relationships and documented rules for records that require special treatment. This allows later revenue, product and inventory analysis to be performed without hidden duplication, inconsistent grouping or unsupported assumptions.
+Several limitations cannot be resolved from the supplied files alone. Missing discounts prevent confirmed net-order-value calculations. Missing, partial and invalid dates restrict time-based analysis. Quantity 608 requires sensitivity testing because it has a disproportionate effect on units and gross value. The meaning of launch_date is inconsistent with a large share of order dates, while the inventory reference date is not a confirmed snapshot date. Most valid inventory updates are also older than the 90-day review threshold.
 
+These limitations remain visible in the exported tables rather than being hidden through unsupported corrections. The cleaned data and purpose-specific subsets will be used in a separate business analysis project covering sales, product performance and inventory.
+
+## Tools
+
+Python | pandas | Matplotlib | Jupyter Notebook | pathlib
