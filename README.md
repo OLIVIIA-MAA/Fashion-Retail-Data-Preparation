@@ -30,19 +30,6 @@ These questions determined the cleaning rules and the conditions used to create 
 | Products     |       2,500 |              5 | One row per product                  | product_id                     | Product attributes, base prices and launch dates                |
 | Inventory    |       3,741 |              4 | One product in one warehouse country | product_id + warehouse_country | Stock availability and update-date review                       |
 
-The most important results of the notebook are summarized below.
-
-| Finding                                        |                         Result | Decision                                                                |
-| ---------------------------------------------- | -----------------------------: | ----------------------------------------------------------------------- |
-| Exact duplicate Sales Orders copies            |                            780 | Reject the repeated copies and retain the first occurrence              |
-| Structurally cleaned Sales Orders              |               **260,000 rows** | Preserve valid orders even when individual fields require review        |
-| Core sales-analysis subset                     |               **254,804 rows** | Apply date, category, positive-value and product-reference requirements |
-| Missing discounts after duplicate removal      |                         31,243 | Retain as unknown rather than replacing with 0%                         |
-| Orders with quantity 608                       |                          1,563 | Retain with a review flag and test results with and without them        |
-| Orders before the recorded product launch date |                        121,535 | Do not correct automatically; treat the field definition as unresolved  |
-| Inventory records older than 90 days           | **3,156 of 3,715 review rows** | Retain with a freshness flag                                            |
-| Exported files validated after saving          |                       10 of 10 | Confirm row counts, columns and source-row tracking after read-back     |
-
 ## Cleaning Approach
 
 ### Source protection and schema control
@@ -221,6 +208,19 @@ The final controls also confirmed unique product_id values in Products, unique o
 The notebook exports ten CSV files and then reads each file back from disk. Row counts and column order are compared with the in-memory tables. For row-level outputs, the full _source_row sequence is also checked.
 
 **All ten exported files passed the applicable read-back controls.** This confirmed that the saved outputs retained the expected rows and structure after export.
+
+## Summary.
+
+| Finding                                        |                         Result | Decision                                                                |
+| ---------------------------------------------- | -----------------------------: | ----------------------------------------------------------------------- |
+| Exact duplicate Sales Orders copies            |                            780 | Reject the repeated copies and retain the first occurrence              |
+| Structurally cleaned Sales Orders              |               **260,000 rows** | Preserve valid orders even when individual fields require review        |
+| Core sales-analysis subset                     |               **254,804 rows** | Apply date, category, positive-value and product-reference requirements |
+| Missing discounts after duplicate removal      |                         31,243 | Retain as unknown rather than replacing with 0%                         |
+| Orders with quantity 608                       |                          1,563 | Retain with a review flag and test results with and without them        |
+| Orders before the recorded product launch date |                        121,535 | Do not correct automatically; treat the field definition as unresolved  |
+| Inventory records older than 90 days           | **3,156 of 3,715 review rows** | Retain with a freshness flag                                            |
+| Exported files validated after saving          |                       10 of 10 | Confirm row counts, columns and source-row tracking after read-back     |
 
 ### Output files
 
