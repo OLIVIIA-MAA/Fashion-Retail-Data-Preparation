@@ -62,7 +62,7 @@ The source files use complete ISO dates written as YYYY-MM-DD, complete day-firs
 
 Partial monthly values are not assigned an invented day. They receive the status partial_month. Empty values receive missing, while impossible or unsupported dates receive invalid. Only confirmed complete dates are stored as parsed dates.
 
-A day-month date is textually ambiguous when both components are between 1 and 12. The parser applies the day-first convention only when the same column also contains values that can only follow DD-MM-YYYY. Parsed ambiguous values keep a separate flag, so the assumption remains visible even when the date can be used.
+A day-month date is textually ambiguous when both components are between 1 and 12. The date format was identified using unambiguous examples from the same column. For instance, a value such as 23-06-2024 can only follow the DD-MM-YYYY format. Based on this pattern, ambiguous values such as 05-06-2024 were also interpreted as day-first dates. These records were retained with an ambiguity flag to show that their original format was not fully explicit.
 
 ### Rejection and analytical filtering
 
@@ -146,9 +146,11 @@ A stock update older than 90 days receives stale_stock_update_review_flag. Among
 
 ## Cross-Dataset Checks and Analytical Subsets
 
-All product IDs used in Sales Orders and Inventory were found in Products. This means that both operational tables can receive product attributes without producing unmatched product references.
+All product IDs recorded in Sales Orders and Inventory were successfully matched with the Products table. This confirmed that product information, including categories, subcategories and base prices, could be added without losing records due to missing product references.
 
-The Sales Orders to Products merge was validated as many_to_one. Many orders may refer to one product, but each product ID can match no more than one product record. Inventory remains at product-country level and is not treated as a one-row-per-product table.
+The relationship between Sales Orders and Products was verified as many-to-one. Multiple orders may relate to the same product, while each product ID appears only once in the Products table. This prevents sales values from being duplicated during the merge. Inventory was kept at product and warehouse-country level because the same product may be stored in several locations.
+
+After these relationship checks, I created two separate subsets for the main sales analysis and inventory review. Each subset contains only the records that meet the requirements of its intended analysis.
 
 Two purpose-specific subsets were created after structural cleaning.
 
