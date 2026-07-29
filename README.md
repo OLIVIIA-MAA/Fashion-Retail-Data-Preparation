@@ -128,8 +128,6 @@ I retained the records and created quantity_608_review_flag instead of labelling
 
 The notebook's quantity histogram is limited to values up to the 99th percentile so that the typical distribution remains readable. This restriction affects only the chart and does not filter the cleaned data.
 
-<!-- Add the quantity distribution visualisation here. -->
-
 ### Inventory
 
 Inventory contains 3,741 rows for 2,500 products. Repeated product IDs are expected because the same product can be stored in more than one warehouse country. Product ID alone is therefore not the correct duplicate key.
