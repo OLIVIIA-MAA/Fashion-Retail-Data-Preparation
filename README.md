@@ -34,13 +34,13 @@ These questions determined the cleaning rules and the conditions used to create 
 
 ### Source protection and schema control
 
-All source columns are loaded as text with pandas' automatic missing-value recognition disabled. This prevents identifiers, mixed date formats and text that resembles a missing-value token from being converted before inspection. Whitespace is normalized later, when leading and trailing spaces are removed, repeated internal spaces are collapsed and empty strings are converted to missing values.
+All source columns were initially loaded as text, with pandas' automatic missing-value recognition disabled. This prevented identifiers, mixed date formats and text values resembling missing-data markers from being converted before inspection. After loading, text fields were normalized by removing leading and trailing spaces, reducing repeated internal whitespace and converting empty strings to missing values.
 
-I added _source_row immediately after loading each file. It stores the original row position and remains in the cleaned, rejected and analytical tables. This allows every output record to be traced back to the source and supports the final reconciliation between raw, cleaned and rejected rows.
+I then added the _source_row column to each dataset. It stores the original row number from the source file and remains in the cleaned, rejected and analytical outputs. This makes it possible to trace every record back to its original position and verify that no rows were lost, duplicated or added during processing.
 
-Before changing any values, the actual schemas were compared with the expected columns. The validation covered missing columns, unexpected columns, duplicate column names and column order. All three files passed this check. No required field was missing, no unexpected or duplicate column name was found, and the columns appeared in the expected order.
+Before cleaning the values, I compared the structure of each file with the expected schema. The validation checked whether all required columns were present, whether the files contained additional columns not defined in the expected structure, whether any column names were duplicated and whether the columns appeared in the correct order. All three datasets passed these checks. Their structures matched the expected schemas, with no missing, additional or duplicated columns.
 
-The first quality profile was created before record rejection. It identified **780 exact duplicate copies** in Sales Orders, 629 empty order dates, 31,322 empty discount values, 91 empty launch dates and 6 empty stock-update dates. I also searched for placeholder tokens such as NA, N/A, null, none and nan. None were present, so the notebook did not need an additional placeholder dictionary.
+The initial quality assessment was completed before any records were rejected. It identified 780 exact duplicate copies in Sales Orders, 629 empty order dates, 31,322 empty discount values, 91 empty product launch dates and 6 empty inventory update dates. I also checked the datasets for placeholder values such as NA, N/A, null, none and nan. None were found, so no additional rules were required to convert text placeholders into missing values.
 
 ### Preserving original values
 
